@@ -1,0 +1,4 @@
+rid-lib
+fastapi
+uvicorn
+httpx
