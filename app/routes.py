@@ -6,6 +6,7 @@ from secrets import token_urlsafe
 from .core import cache, subscriber, publisher
 from .auth import api_key_header
 from .models import SubscriberProfile, SubscriptionType, PublisherProfile
+from .config import SLACK_WEBHOOK
 
 subscriber_queue = {}
 
@@ -15,6 +16,10 @@ router = APIRouter(
 
 def notify_subscribers(events: list[Event]):
     for event in events:
+        httpx.post(
+            SLACK_WEBHOOK,
+            json={"text": f"`{event.event_type} -> {event.rid}`"}
+        )
         sub_ids = subscriber.lookup.get(event.rid.context)
         if not sub_ids: continue
         
