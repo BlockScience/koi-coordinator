@@ -23,9 +23,7 @@ def notify_subscribers(events: list[Event]):
     
             queue = subscriber_queue.setdefault(sub_id, [])
             queue.append(event)
-            
-    print(subscriber_queue)
-    
+                
     for sub_id, events in subscriber_queue.items():
         sub_profile = subscriber.profiles[sub_id]
         
@@ -70,7 +68,7 @@ async def poll_events(sub_id: str):
             detail="Subscriber ID not found"
         )
 
-    queue = subscriber_queue[sub_id]
+    queue = subscriber_queue.setdefault(sub_id, [])
     events_json = [
         event.to_json() for event in queue
     ]
