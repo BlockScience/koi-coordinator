@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from secrets import token_urlsafe
 from .core import cache, subscriber, publisher
 from .auth import api_key_header
-from .models import SubscriberProfile, SubscriptionType
+from .models import SubscriberProfile, SubscriptionType, PublisherProfile
 
 subscriber_queue = {}
 
@@ -40,8 +40,14 @@ def notify_subscribers(events: list[Event]):
                 continue
     
 
-@router.post("/events/publish")
-async def publish_event(events: list[Event], background_tasks: BackgroundTasks):
+@router.post("/events/publish/{pub_id}")
+async def publish_event(pub_id: str, events: list[Event], background_tasks: BackgroundTasks):
+    if pub_id not in publisher.profiles:
+        raise HTTPException(
+            status_code=404,
+            detail="Pubscriber ID not found"
+        )
+        
     for event in events:
         if event.event_type in (EventType.NEW, EventType.UPDATE):
             cache.write_manifest_only(event.rid, event.manifest)
@@ -55,7 +61,7 @@ async def publish_event(events: list[Event], background_tasks: BackgroundTasks):
                     
 @router.get("/events/poll/{sub_id}")
 async def poll_events(sub_id: str):
-    if sub_id not in subscriber_queue:
+    if sub_id not in subscriber.profiles:
         raise HTTPException(
             status_code=404,
             detail="Subscriber ID not found"
@@ -69,9 +75,13 @@ async def poll_events(sub_id: str):
     return events_json 
 
 
-@router.post("/events/subscribe/{sub_id}")
-@router.post("/events/subscribe")
-async def subscribe_to_events(sub_profile: SubscriberProfile, sub_id: str = None):
+@router.get("/profiles/subscriber/{sub_id}")
+async def get_subscriber_profile(sub_id: str):
+    return subscriber.profiles.get(sub_id)
+
+@router.post("/profiles/subscriber/{sub_id}")
+@router.post("/profiles/subscriber")
+async def set_subscriber_profile(sub_profile: SubscriberProfile, sub_id: str = None):
     if sub_id is None:
         sub_id = token_urlsafe(16)
 
@@ -81,6 +91,33 @@ async def subscribe_to_events(sub_profile: SubscriberProfile, sub_id: str = None
         "sub_id": sub_id
     }
     
+@router.get("/profiles/publisher/{pub_id}")
+async def get_publisher_profile(pub_id: str):
+    return publisher.profiles.get(pub_id)
+
+@router.get("/profiles/publisher")
+async def get_publishers_by_context(context: str):
+    return [
+        publisher.profiles[pub_id]
+        for pub_id in publisher.lookup.get(context, [])
+    ]
+
+@router.post("/profiles/publisher/{pub_id}")
+@router.post("/profiles/publisher")
+async def set_subscriber_profile(pub_profile: PublisherProfile, pub_id: str = None):
+    if pub_id is None:
+        pub_id = token_urlsafe(16)
+
+    publisher.set_profile(pub_id, pub_profile)
+    
+    return {
+        "pub_id": pub_id
+    }    
+    
+
+
+
+
 @router.get("/rids")
 async def retrieve_rids():
     return json_serialize(cache.read_all_rids())
