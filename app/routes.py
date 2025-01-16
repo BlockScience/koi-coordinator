@@ -38,7 +38,10 @@ def notify_subscribers(events: list[Event]):
             except httpx.ConnectError:
                 print("failed to connect", queue)
                 continue
-    
+
+# def catch_up_with_publisher(pub_id):
+#     publisher.profiles[pub_id]
+
 
 @router.post("/events/publish/{pub_id}")
 async def publish_event(pub_id: str, events: list[Event], background_tasks: BackgroundTasks):
@@ -104,9 +107,12 @@ async def get_publishers_by_context(context: str):
 
 @router.post("/profiles/publisher/{pub_id}")
 @router.post("/profiles/publisher")
-async def set_subscriber_profile(pub_profile: PublisherProfile, pub_id: str = None):
+async def set_subscriber_profile(pub_profile: PublisherProfile, background_tasks: BackgroundTasks, pub_id: str = None):
     if pub_id is None:
         pub_id = token_urlsafe(16)
+        # background_tasks.add_task(
+        #     catch_up_with_publisher, pub_id
+        # )
 
     publisher.set_profile(pub_id, pub_profile)
     
